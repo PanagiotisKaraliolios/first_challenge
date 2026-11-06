@@ -1,16 +1,29 @@
 <?php
     require_once("./lib.php");
+
+    // The session keeps a secret token that proves a submission came from this page's form (CSRF protection)
+    session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax']);
+    session_start();
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
     $productsList = new Products("./products.xml");
 
     $errors = [];
     $form = [];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form = is_array($_POST['product'] ?? null) ? $_POST['product'] : [];
-        $errors = $productsList->add_product($form);
-        if (!$errors) {
-            // Redirect so a page refresh does not submit the product again
-            header('Location: ' . basename($_SERVER['PHP_SELF']) . '?added=1');
-            exit;
+        $token = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
+        if (!hash_equals($_SESSION['csrf_token'], $token)) {
+            $errors = ['The form has expired. Please submit it again.'];
+        } else {
+            $errors = $productsList->add_product($form);
+            if (!$errors) {
+                // Redirect so a page refresh does not submit the product again
+                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?added=1');
+                exit;
+            }
         }
     }
 
@@ -54,6 +67,7 @@
 <?php endif; ?>
 
 <form class="product-form" method="post" action="<?= htmlspecialchars(basename($_SERVER['PHP_SELF'])) ?>">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     <label class="wide">Name *
         <input type="text" name="product[NAME]" value="<?= field($form, 'NAME') ?>" maxlength="255" required>
     </label>
