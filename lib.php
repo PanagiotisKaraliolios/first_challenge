@@ -63,4 +63,92 @@ class Products
         }
         echo '</tr>';
     }
+
+    /**
+     * This function validates a new product and appends it to the xml file
+     * @param array $data The product fields keyed by XML tag (NAME is required), plus an optional CATEGORY_ID
+     * @return array The validation errors, empty if the product was saved
+     */
+    public function add_product($data)
+    {
+        $data = array_map(fn($v) => is_string($v) ? trim($v) : '', is_array($data) ? $data : []);
+        $errors = [];
+        if (($data['NAME'] ?? '') === '') {
+            $errors[] = 'Name is required.';
+        }
+        if (($data['PRICE'] ?? '') !== '' && !is_numeric($data['PRICE'])) {
+            $errors[] = 'Price must be a number.';
+        }
+        if (($data['QUANTITY'] ?? '') !== '' && !ctype_digit($data['QUANTITY'])) {
+            $errors[] = 'Quantity must be a whole number.';
+        }
+        if (($data['INSTOCK'] ?? '') !== '' && !in_array($data['INSTOCK'], ['Y', 'N'], true)) {
+            $errors[] = 'In stock must be Y or N.';
+        }
+        if ($errors) {
+            return $errors;
+        }
+
+        // Lock the file so two submissions at once cannot overwrite each other
+        $fp = fopen($this->xml_file_path, 'r+');
+        if (!$fp) {
+            return ['Could not open the products file.'];
+        }
+        flock($fp, LOCK_EX);
+
+        $contents = stream_get_contents($fp);
+        $doc = new DOMDocument();
+        if (!$doc->loadXML($contents) || !($products = $doc->getElementsByTagName('PRODUCTS')->item(0))) {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            return ['Could not read the products file.'];
+        }
+
+        // Build the new PRODUCT with the same indentation as the existing ones
+        $product = $doc->createElement('PRODUCT');
+        foreach (self::COLUMNS as $tag => $label) {
+            $value = $data[$tag] ?? '';
+            $el = $doc->createElement($tag);
+            // NAME, BARCODE and WEIGHT are stored as CDATA in the existing file
+            if (in_array($tag, ['NAME', 'BARCODE', 'WEIGHT'], true) && strpos($value, ']]>') === false) {
+                $el->appendChild($doc->createCDATASection($value));
+            } else {
+                $el->appendChild($doc->createTextNode($value));
+            }
+            if ($tag === 'CATEGORY' && ($data['CATEGORY_ID'] ?? '') !== '') {
+                $el->setAttribute('id', $data['CATEGORY_ID']);
+            }
+            $product->appendChild($doc->createTextNode("\n            "));
+            $product->appendChild($el);
+        }
+        $product->appendChild($doc->createTextNode("\n        "));
+
+        $last = $products->lastChild;
+        if ($last && $last->nodeType === XML_TEXT_NODE) {
+            $products->insertBefore($doc->createTextNode("\n        "), $last);
+            $products->insertBefore($product, $last);
+        } else {
+            $products->appendChild($product);
+        }
+
+        $last_update = $doc->getElementsByTagName('LAST_UPDATE')->item(0);
+        if ($last_update) {
+            $last_update->textContent = date('Y-m-d H:i');
+        }
+
+        // DOMDocument writes LF line endings, so keep the file's CRLF if it had them
+        $output = $doc->saveXML();
+        if (strpos($contents, "\r\n") !== false) {
+            $output = str_replace("\n", "\r\n", str_replace("\r\n", "\n", $output));
+        }
+
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, $output);
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        return [];
+    }
 }

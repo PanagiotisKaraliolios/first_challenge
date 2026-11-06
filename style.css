@@ -24,11 +24,103 @@ body {
     line-height: 1.5;
 }
 
-h1 {
+h1,
+h2 {
     max-width: 1200px;
     margin: 0 auto 20px;
-    font-size: 26px;
     font-weight: 600;
+}
+
+h1 {
+    font-size: 26px;
+}
+
+h2 {
+    margin-top: 40px;
+    font-size: 20px;
+}
+
+.notice {
+    max-width: 1200px;
+    margin: 0 auto 20px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid;
+}
+
+.notice p {
+    margin: 0;
+}
+
+.notice.success {
+    background: #e3f9e5;
+    border-color: #91d8a0;
+    color: #05400a;
+}
+
+.notice.error {
+    background: #ffe3e3;
+    border-color: #f5a3a3;
+    color: #610404;
+}
+
+.product-form {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.product-form .wide {
+    grid-column: 1 / -1;
+}
+
+.product-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.product-form input,
+.product-form select {
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 400;
+    color: var(--text);
+    background: var(--surface);
+}
+
+.product-form input:focus,
+.product-form select:focus {
+    outline: 2px solid #9fb3c8;
+    outline-offset: 0;
+    border-color: #9fb3c8;
+}
+
+.product-form button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    background: var(--header-bg);
+    color: var(--header-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.product-form button:hover {
+    background: #334e68;
 }
 
 .table-wrap {
