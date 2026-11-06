@@ -83,6 +83,7 @@
             <option value="Y"<?= field($form, 'INSTOCK') === 'N' ? '' : ' selected' ?>>Y</option>
             <option value="N"<?= field($form, 'INSTOCK') === 'N' ? ' selected' : '' ?>>N</option>
         </select>
+        <small>Set from Quantity when Quantity is filled in.</small>
     </label>
     <label>Availability
         <input type="text" name="product[AVAILABILITY]" value="<?= field($form, 'AVAILABILITY') ?>" maxlength="255">
@@ -91,6 +92,23 @@
         <button type="submit">Add product</button>
     </div>
 </form>
+
+<script>
+// Show In stock as the server will save it: Y when Quantity is above 0, N when it is 0
+(function () {
+    var quantity = document.querySelector('[name="product[QUANTITY]"]');
+    var instock = document.querySelector('[name="product[INSTOCK]"]');
+    function sync() {
+        var filled = quantity.value.trim() !== '';
+        instock.disabled = filled;
+        if (filled) {
+            instock.value = Number(quantity.value) > 0 ? 'Y' : 'N';
+        }
+    }
+    quantity.addEventListener('input', sync);
+    sync();
+})();
+</script>
 
 </body>
 </html>

@@ -79,7 +79,8 @@ class Products
     }
 
     /**
-     * This function validates the fields of a new product and normalizes PRICE and WEIGHT
+     * This function validates the fields of a new product, normalizes PRICE, QUANTITY and WEIGHT
+     * and sets INSTOCK from QUANTITY when QUANTITY is given
      * @param array $data The trimmed product fields keyed by XML tag, updated in place
      * @return array The validation errors, empty if the product is valid
      */
@@ -110,8 +111,14 @@ class Products
             }
         }
 
-        if ($data['QUANTITY'] !== '' && !preg_match('/^\d{1,9}$/', $data['QUANTITY'])) {
-            $errors[] = 'Quantity must be a whole number of 0 or more.';
+        if ($data['QUANTITY'] !== '') {
+            if (preg_match('/^\d{1,9}$/', $data['QUANTITY'])) {
+                $data['QUANTITY'] = (string) (int) $data['QUANTITY'];
+                // A known quantity decides whether the product is in stock
+                $data['INSTOCK'] = $data['QUANTITY'] === '0' ? 'N' : 'Y';
+            } else {
+                $errors[] = 'Quantity must be a whole number of 0 or more.';
+            }
         }
 
         if ($data['CATEGORY_ID'] !== '' && !preg_match('/^\d{1,18}$/', $data['CATEGORY_ID'])) {

@@ -123,6 +123,15 @@ h2 {
     background: #334e68;
 }
 
+.product-form small {
+    font-weight: 400;
+}
+
+.product-form select:disabled {
+    background: var(--bg);
+    color: var(--muted);
+}
+
 .table-wrap {
     max-width: 1200px;
     margin: 0 auto;
