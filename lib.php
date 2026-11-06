@@ -59,9 +59,23 @@ class Products
         //var_dump($prod);
         echo '<tr>';
         foreach (self::COLUMNS as $tag => $label) {
-            echo '<td class="col-' . strtolower($tag) . '">' . htmlspecialchars(trim((string) $prod->$tag)) . '</td>';
+            $value = trim((string) $prod->$tag);
+            if ($tag === 'PRICE') {
+                $value = $this->format_price($value);
+            }
+            echo '<td class="col-' . strtolower($tag) . '">' . htmlspecialchars($value) . '</td>';
         }
         echo '</tr>';
+    }
+
+    /**
+     * This function formats a price in euro the Greek way, e.g. 64.9 becomes "64,90 €"
+     * @param string $price The price as stored in the xml file
+     * @return string The formatted price, or the value unchanged if it is not a number
+     */
+    private function format_price($price)
+    {
+        return is_numeric($price) ? number_format((float) $price, 2, ',', '.') . ' €' : $price;
     }
 
     /**

@@ -57,7 +57,7 @@
     <label class="wide">Name *
         <input type="text" name="product[NAME]" value="<?= field($form, 'NAME') ?>" maxlength="255" required>
     </label>
-    <label>Price
+    <label>Price (€)
         <input type="number" name="product[PRICE]" value="<?= field($form, 'PRICE') ?>" step="0.01" min="0">
     </label>
     <label>Quantity
