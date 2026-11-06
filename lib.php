@@ -79,6 +79,19 @@ class Products
     }
 
     /**
+     * This function writes a decimal number without extra zeros, e.g. "006,50" becomes "6.5"
+     * @param string $number Digits with an optional "." or "," decimal part
+     * @return string The normalized number
+     */
+    private function normalize_decimal($number)
+    {
+        $parts = explode('.', str_replace(',', '.', $number), 2);
+        $whole = ltrim($parts[0], '0');
+        $fraction = rtrim($parts[1] ?? '', '0');
+        return ($whole === '' ? '0' : $whole) . ($fraction === '' ? '' : '.' . $fraction);
+    }
+
+    /**
      * This function validates the fields of a new product, normalizes PRICE, QUANTITY and WEIGHT
      * and sets INSTOCK from QUANTITY when QUANTITY is given
      * @param array $data The trimmed product fields keyed by XML tag, updated in place
@@ -103,11 +116,10 @@ class Products
         }
 
         if ($data['PRICE'] !== '') {
-            $price = str_replace(',', '.', $data['PRICE']);
-            if (!preg_match('/^\d+(\.\d{1,2})?$/', $price)) {
-                $errors[] = 'Price must be a positive number with up to 2 decimals, e.g. 64.90.';
+            if (preg_match('/^\d{1,9}([.,]\d{1,2})?$/', $data['PRICE'])) {
+                $data['PRICE'] = $this->normalize_decimal($data['PRICE']);
             } else {
-                $data['PRICE'] = (string) (float) $price;
+                $errors[] = 'Price must be a number of 0 or more with up to 2 decimals, e.g. 64.90.';
             }
         }
 
@@ -132,10 +144,10 @@ class Products
 
         // Stored like the existing products, e.g. "6.1kg"
         if ($data['WEIGHT'] !== '') {
-            if (preg_match('/^(\d+(?:[.,]\d+)?)\s*(kg|g)$/i', $data['WEIGHT'], $m) && (float) str_replace(',', '.', $m[1]) > 0) {
-                $data['WEIGHT'] = (float) str_replace(',', '.', $m[1]) . strtolower($m[2]);
+            if (preg_match('/^(\d{1,6}(?:[.,]\d{1,3})?)\s*(kg|g)$/i', $data['WEIGHT'], $m) && (float) str_replace(',', '.', $m[1]) > 0) {
+                $data['WEIGHT'] = $this->normalize_decimal($m[1]) . strtolower($m[2]);
             } else {
-                $errors[] = 'Weight must be a number above 0 followed by kg or g, e.g. 6.1kg or 500g.';
+                $errors[] = 'Weight must be a number above 0 with up to 3 decimals, followed by kg or g, e.g. 6.1kg or 500g.';
             }
         }
 

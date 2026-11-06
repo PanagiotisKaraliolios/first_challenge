@@ -72,7 +72,7 @@
         <input type="text" name="product[NAME]" value="<?= field($form, 'NAME') ?>" maxlength="255" required>
     </label>
     <label>Price (€)
-        <input type="number" name="product[PRICE]" value="<?= field($form, 'PRICE') ?>" step="0.01" min="0">
+        <input type="number" name="product[PRICE]" value="<?= field($form, 'PRICE') ?>" step="0.01" min="0" max="999999999.99">
     </label>
     <label>Quantity
         <input type="number" name="product[QUANTITY]" value="<?= field($form, 'QUANTITY') ?>" step="1" min="0" max="999999999">
@@ -90,7 +90,7 @@
         <input type="text" name="product[BARCODE]" value="<?= field($form, 'BARCODE') ?>" inputmode="numeric" pattern="\d{8}|\d{12,14}" title="8, 12, 13 or 14 digits">
     </label>
     <label>Weight
-        <input type="text" name="product[WEIGHT]" value="<?= field($form, 'WEIGHT') ?>" pattern="\d+([.,]\d+)?\s*([kK][gG]|[gG])" title="A number followed by kg or g, e.g. 6.1kg or 500g" placeholder="e.g. 6.1kg">
+        <input type="text" name="product[WEIGHT]" value="<?= field($form, 'WEIGHT') ?>" pattern="\d{1,6}([.,]\d{1,3})?\s*([kK][gG]|[gG])" title="A number with up to 3 decimals followed by kg or g, e.g. 6.1kg or 500g" placeholder="e.g. 6.1kg">
     </label>
     <label>In stock
         <select name="product[INSTOCK]">
