@@ -2,6 +2,19 @@
 class Products
 {
 
+    // XML tag => table header label
+    const COLUMNS = [
+        'NAME' => 'Name',
+        'PRICE' => 'Price',
+        'QUANTITY' => 'Quantity',
+        'CATEGORY' => 'Category',
+        'MANUFACTURER' => 'Manufacturer',
+        'BARCODE' => 'Barcode',
+        'WEIGHT' => 'Weight',
+        'INSTOCK' => 'In stock',
+        'AVAILABILITY' => 'Availability',
+    ];
+
     private $xml_file_path = '';
 
     public function __construct($xml_file_path = '')
@@ -19,12 +32,21 @@ class Products
         $xmldata = simplexml_load_file($this->xml_file_path) or die("Failed to load");
         $xml_data = $xmldata->children();
 
+        echo '<table border="1">';
+        echo '<tr>';
+        foreach (self::COLUMNS as $tag => $label) {
+            echo '<th>' . htmlspecialchars($label) . '</th>';
+        }
+        echo '</tr>';
+
         foreach ($xml_data->PRODUCTS->PRODUCT as $key => $prod) {
             
             $this->print_html_of_one_product_line($prod);
         
         }
         
+        echo '</table>';
+
     }
 
     /**
@@ -35,5 +57,10 @@ class Products
     private function print_html_of_one_product_line($prod){
         //TODO 2: Θα πρέπει να συμπληρώσουμε τη συνάρτηση ώστε να κάνει print τα tr με τα στοιχεία του ενός προϊόντος
         //var_dump($prod);
+        echo '<tr>';
+        foreach (self::COLUMNS as $tag => $label) {
+            echo '<td>' . htmlspecialchars(trim((string) $prod->$tag)) . '</td>';
+        }
+        echo '</tr>';
     }
 }
