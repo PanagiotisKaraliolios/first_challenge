@@ -1,3 +1,11 @@
+# Products challenge
+
+Live demo: https://php.karaliolios.dev/
+
+Run locally with PHP 8 or newer: `php -S localhost:8000` in this folder, then open http://localhost:8000/products.php.
+
+What was built and why: [DECISIONS.md](DECISIONS.md). The original brief follows.
+
 # TODO
 1. Σκοπός του products.php είναι να εκτυπώνει ένα HTML table με όλα τα προϊόντα που βρίσκονται στο products.xml. 
 Συμπλήρωσε τον κώδικα στις δύο συναρτήσεις της κλάσης ώστε να εκτυπώσεις το table.
