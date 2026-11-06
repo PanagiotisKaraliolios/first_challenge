@@ -1,0 +1,106 @@
+:root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1f2933;
+    --muted: #616e7c;
+    --border: #e4e7eb;
+    --header-bg: #243b53;
+    --header-text: #ffffff;
+    --row-alt: #f9fafb;
+    --row-hover: #eef4fb;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+h1 {
+    max-width: 1200px;
+    margin: 0 auto 20px;
+    font-size: 26px;
+    font-weight: 600;
+}
+
+.table-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+table.products {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table.products th,
+table.products td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+}
+
+table.products th {
+    background: var(--header-bg);
+    color: var(--header-text);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+table.products tbody tr:nth-child(even) {
+    background: var(--row-alt);
+}
+
+table.products tbody tr:hover {
+    background: var(--row-hover);
+}
+
+table.products tbody tr:last-child td {
+    border-bottom: none;
+}
+
+table.products .col-name {
+    min-width: 280px;
+    font-weight: 500;
+}
+
+table.products .col-price,
+table.products .col-quantity,
+table.products .col-weight {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+table.products td.col-barcode {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+table.products .col-instock,
+table.products .col-category,
+table.products .col-availability {
+    white-space: nowrap;
+}
+
+table.products .col-instock {
+    text-align: center;
+}

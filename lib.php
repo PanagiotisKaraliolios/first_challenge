@@ -32,12 +32,12 @@ class Products
         $xmldata = simplexml_load_file($this->xml_file_path) or die("Failed to load");
         $xml_data = $xmldata->children();
 
-        echo '<table border="1">';
-        echo '<tr>';
+        echo '<table class="products">';
+        echo '<thead><tr>';
         foreach (self::COLUMNS as $tag => $label) {
-            echo '<th>' . htmlspecialchars($label) . '</th>';
+            echo '<th class="col-' . strtolower($tag) . '">' . htmlspecialchars($label) . '</th>';
         }
-        echo '</tr>';
+        echo '</tr></thead><tbody>';
 
         foreach ($xml_data->PRODUCTS->PRODUCT as $key => $prod) {
             
@@ -45,7 +45,7 @@ class Products
         
         }
         
-        echo '</table>';
+        echo '</tbody></table>';
 
     }
 
@@ -59,7 +59,7 @@ class Products
         //var_dump($prod);
         echo '<tr>';
         foreach (self::COLUMNS as $tag => $label) {
-            echo '<td>' . htmlspecialchars(trim((string) $prod->$tag)) . '</td>';
+            echo '<td class="col-' . strtolower($tag) . '">' . htmlspecialchars(trim((string) $prod->$tag)) . '</td>';
         }
         echo '</tr>';
     }
