@@ -65,6 +65,67 @@ class Products
     }
 
     /**
+     * This function validates the fields of a new product and normalizes PRICE and WEIGHT
+     * @param array $data The trimmed product fields keyed by XML tag, updated in place
+     * @return array The validation errors, empty if the product is valid
+     */
+    private function validate_product(&$data)
+    {
+        $errors = [];
+        foreach (self::COLUMNS + ['CATEGORY_ID' => 'Category ID'] as $tag => $label) {
+            $data[$tag] = $data[$tag] ?? '';
+            // /u fails on invalid UTF-8, so this also rejects malformed input
+            if (preg_match('/^[^\x00-\x1F\x7F]{0,255}$/u', $data[$tag]) !== 1) {
+                $errors[] = $label . ' must be valid text of at most 255 characters.';
+            }
+        }
+        if ($errors) {
+            return $errors;
+        }
+
+        if ($data['NAME'] === '') {
+            $errors[] = 'Name is required.';
+        }
+
+        if ($data['PRICE'] !== '') {
+            $price = str_replace(',', '.', $data['PRICE']);
+            if (!preg_match('/^\d+(\.\d{1,2})?$/', $price)) {
+                $errors[] = 'Price must be a positive number with up to 2 decimals, e.g. 64.90.';
+            } else {
+                $data['PRICE'] = (string) (float) $price;
+            }
+        }
+
+        if ($data['QUANTITY'] !== '' && !preg_match('/^\d{1,9}$/', $data['QUANTITY'])) {
+            $errors[] = 'Quantity must be a whole number of 0 or more.';
+        }
+
+        if ($data['CATEGORY_ID'] !== '' && !preg_match('/^\d{1,18}$/', $data['CATEGORY_ID'])) {
+            $errors[] = 'Category ID must contain only digits.';
+        }
+
+        // EAN-8, UPC-A, EAN-13 or GTIN-14
+        if ($data['BARCODE'] !== '' && !preg_match('/^(\d{8}|\d{12,14})$/', $data['BARCODE'])) {
+            $errors[] = 'Barcode must be 8, 12, 13 or 14 digits.';
+        }
+
+        // Stored like the existing products, e.g. "6.1kg"
+        if ($data['WEIGHT'] !== '') {
+            if (preg_match('/^(\d+(?:[.,]\d+)?)\s*(kg|g)$/i', $data['WEIGHT'], $m) && (float) str_replace(',', '.', $m[1]) > 0) {
+                $data['WEIGHT'] = (float) str_replace(',', '.', $m[1]) . strtolower($m[2]);
+            } else {
+                $errors[] = 'Weight must be a number above 0 followed by kg or g, e.g. 6.1kg or 500g.';
+            }
+        }
+
+        if ($data['INSTOCK'] !== '' && !in_array($data['INSTOCK'], ['Y', 'N'], true)) {
+            $errors[] = 'In stock must be Y or N.';
+        }
+
+        return $errors;
+    }
+
+    /**
      * This function validates a new product and appends it to the xml file
      * @param array $data The product fields keyed by XML tag (NAME is required), plus an optional CATEGORY_ID
      * @return array The validation errors, empty if the product was saved
@@ -72,19 +133,7 @@ class Products
     public function add_product($data)
     {
         $data = array_map(fn($v) => is_string($v) ? trim($v) : '', is_array($data) ? $data : []);
-        $errors = [];
-        if (($data['NAME'] ?? '') === '') {
-            $errors[] = 'Name is required.';
-        }
-        if (($data['PRICE'] ?? '') !== '' && !is_numeric($data['PRICE'])) {
-            $errors[] = 'Price must be a number.';
-        }
-        if (($data['QUANTITY'] ?? '') !== '' && !ctype_digit($data['QUANTITY'])) {
-            $errors[] = 'Quantity must be a whole number.';
-        }
-        if (($data['INSTOCK'] ?? '') !== '' && !in_array($data['INSTOCK'], ['Y', 'N'], true)) {
-            $errors[] = 'In stock must be Y or N.';
-        }
+        $errors = $this->validate_product($data);
         if ($errors) {
             return $errors;
         }
