@@ -1,8 +1,12 @@
 <?php
+/**
+ * This class prints the products of an xml file as an HTML table and appends new products to that file
+ */
 class Products
 {
 
-    // XML tag => table header label
+    // XML tag => table header label. The order is the column order of the table and the tag order of a new PRODUCT,
+    // matching products.xml. Every tag is also checked by validate_product() and becomes the CSS class col-<tag> in style.css
     const COLUMNS = [
         'NAME' => 'Name',
         'PRICE' => 'Price',
@@ -24,7 +28,8 @@ class Products
 
     /**
      * This function prints an HTML table with all the products as read from the xml file
-     * @return void 
+     * (or an error notice if the file cannot be read)
+     * @return void
      */
     public function print_html_table_with_all_products()
     {
@@ -113,11 +118,13 @@ class Products
     /**
      * This function formats a price in euro the Greek way, e.g. 64.9 becomes "64,90 €"
      * @param string $price The price as stored in the xml file
-     * @return string The formatted price, or the value unchanged if it is not a plain decimal number
+     * @return string The formatted price, or the value unchanged unless it is a plain decimal
+     *                with at most 12 digits before the "." and at most 2 after it
      */
     private function format_price($price)
     {
-        // Longer numbers would lose digits in the float conversion, so they are shown as stored
+        // More digits would be lost in the float conversion and more decimals would be rounded away by number_format(),
+        // so such values are shown as stored
         if (!preg_match('/^\d{1,12}(\.\d{1,2})?$/', $price)) {
             return $price;
         }
@@ -139,8 +146,10 @@ class Products
 
     /**
      * This function validates the fields of a new product, normalizes PRICE, QUANTITY and WEIGHT
-     * and sets INSTOCK from QUANTITY when QUANTITY is given
-     * @param array $data The trimmed product fields keyed by XML tag, updated in place
+     * and sets INSTOCK from QUANTITY when QUANTITY is given.
+     * The form in products.php repeats the length limit and the PRICE, QUANTITY, CATEGORY_ID, BARCODE and WEIGHT rules
+     * in its maxlength and pattern attributes; change both places together
+     * @param array $data The trimmed product fields keyed by XML tag, updated in place (missing fields become '')
      * @return array The validation errors, empty if the product is valid
      */
     private function validate_product(&$data)
@@ -149,7 +158,8 @@ class Products
         foreach (self::COLUMNS + ['CATEGORY_ID' => 'Category ID'] as $tag => $label) {
             $data[$tag] = $data[$tag] ?? '';
             // /u fails on invalid UTF-8, so this also rejects malformed input.
-            // Control characters and U+FFFE/U+FFFF are refused because XML does not allow them
+            // XML does not allow control characters other than tab, LF and CR, or U+FFFE/U+FFFF. Tab, LF and CR are refused too
+            // because every field is single-line text, and DEL and the C1 controls (U+007F-U+009F) because they are invisible
             if (preg_match('/^[^\x00-\x1F\x7F-\x{9F}\x{FFFE}\x{FFFF}]{0,255}$/u', $data[$tag]) !== 1) {
                 $errors[] = $label . ' must be valid text of at most 255 characters.';
             }
@@ -206,7 +216,8 @@ class Products
     }
 
     /**
-     * This function finds existing products with the same name (ignoring case) or barcode as a new product
+     * This function finds existing products with the same name or barcode as a new product.
+     * Names are compared ignoring case, repeated whitespace and invisible characters such as zero-width spaces
      * @param DOMDocument $doc The loaded xml file
      * @param array $data The validated product fields
      * @return array A message for each match, empty if there are none
@@ -232,7 +243,8 @@ class Products
     }
 
     /**
-     * This function parses xml text and logs the reasons when it is not well-formed
+     * This function parses xml text and logs libxml's reasons when it is not well-formed
+     * (an empty string or false returns null without logging)
      * @param string|false $xml The xml text
      * @return DOMDocument|null The parsed document, or null if the text is not well-formed xml
      */
@@ -321,6 +333,9 @@ class Products
         }
         $product->appendChild($doc->createTextNode("\n        "));
 
+        // The last child of PRODUCTS is normally the whitespace before </PRODUCTS>. The new PRODUCT goes in front of it,
+        // after a newline and 8 spaces, so it is indented like the others and </PRODUCTS> keeps its own line.
+        // A file without that whitespace (all on one line) simply gets the product appended
         $last = $products->lastChild;
         if ($last && $last->nodeType === XML_TEXT_NODE) {
             $products->insertBefore($doc->createTextNode("\n        "), $last);
@@ -340,7 +355,8 @@ class Products
             $output = str_replace("\n", "\r\n", str_replace("\r\n", "\n", $output));
         }
 
-        // Check that the exact text that will be written can be read back, so a save can never leave an unreadable file
+        // Check that the exact text that will be written can be read back, so a save that completes never leaves
+        // an unreadable file (a write that fails part-way is handled below)
         if (!$this->parse_xml($output)) {
             return ['errors' => ['The product was not saved because the products file would become unreadable.'], 'duplicates' => []];
         }

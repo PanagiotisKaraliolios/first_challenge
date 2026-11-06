@@ -1,3 +1,7 @@
+/* Styles for products.php: the products table printed by Products::print_html_table_with_all_products() in lib.php
+   (its col-<tag> cell classes come from Products::COLUMNS), the add-product form, and the .notice success, error and
+   warning messages (lib.php also prints .notice.error). Colors are set once in :root. */
+
 :root {
     --bg: #f6f7f9;
     --surface: #ffffff;

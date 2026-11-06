@@ -79,6 +79,11 @@
 <?php endif; ?>
 
 <?php // A fixed action: one built from PHP_SELF would let a crafted URL such as products.php/javascript:... set it ?>
+<?php
+    // pattern, maxlength and required repeat the rules in Products::validate_product() so mistakes show before submitting.
+    // The server is the check that counts; change both places together. Browsers match a pattern against the whole value,
+    // so it needs no ^ and $, and the \s* around each pattern allows the spaces that add_product() trims
+?>
 <form class="product-form" method="post" action="products.php">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     <label class="wide">Name *
@@ -102,6 +107,11 @@
     <label>Barcode
         <input type="text" name="product[BARCODE]" value="<?= field($form, 'BARCODE') ?>" inputmode="numeric" pattern="\s*(\d{8}|\d{12,14})\s*" title="8, 12, 13 or 14 digits">
     </label>
+    <?php
+        // Same rule as the WEIGHT check in Products::validate_product(). The lookahead requires a non-zero digit, like the
+        // server's "> 0" check. " *" allows only spaces before the unit: the server's \s has no /u flag, so it does not match
+        // a non-breaking space. [kK][gG] replaces the /i flag, which a pattern attribute cannot use
+    ?>
     <label>Weight
         <input type="text" name="product[WEIGHT]" value="<?= field($form, 'WEIGHT') ?>" pattern="\s*(?=[\d.,]*[1-9])\d{1,6}([.,]\d{1,3})? *([kK][gG]|[gG])\s*" title="A number above 0 with up to 3 decimals followed by kg or g, e.g. 6.1kg or 500g" placeholder="e.g. 6.1kg">
     </label>
