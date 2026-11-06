@@ -11,6 +11,7 @@
     $productsList = new Products("./products.xml");
 
     $errors = [];
+    $duplicates = [];
     $form = [];
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $form = is_array($_POST['product'] ?? null) ? $_POST['product'] : [];
@@ -18,8 +19,10 @@
         if (!hash_equals($_SESSION['csrf_token'], $token)) {
             $errors = ['The form has expired. Please submit it again.'];
         } else {
-            $errors = $productsList->add_product($form);
-            if (!$errors) {
+            $result = $productsList->add_product($form, ($_POST['allow_duplicates'] ?? '') === '1');
+            $errors = $result['errors'];
+            $duplicates = $result['duplicates'];
+            if (!$errors && !$duplicates) {
                 // Redirect so a page refresh does not submit the product again
                 header('Location: ' . basename($_SERVER['PHP_SELF']) . '?added=1');
                 exit;
@@ -66,6 +69,15 @@
 </div>
 <?php endif; ?>
 
+<?php if ($duplicates): ?>
+<div class="notice warning">
+    <?php foreach ($duplicates as $duplicate): ?>
+    <p><?= htmlspecialchars($duplicate) ?></p>
+    <?php endforeach; ?>
+    <p>Tick "Add it anyway" and submit again to save it as a new product.</p>
+</div>
+<?php endif; ?>
+
 <form class="product-form" method="post" action="<?= htmlspecialchars(basename($_SERVER['PHP_SELF'])) ?>">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     <label class="wide">Name *
@@ -102,6 +114,11 @@
     <label>Availability
         <input type="text" name="product[AVAILABILITY]" value="<?= field($form, 'AVAILABILITY') ?>" maxlength="255">
     </label>
+    <?php if ($duplicates): ?>
+    <label class="wide confirm">
+        <input type="checkbox" name="allow_duplicates" value="1"> Add it anyway
+    </label>
+    <?php endif; ?>
     <div class="wide">
         <button type="submit">Add product</button>
     </div>

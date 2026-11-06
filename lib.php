@@ -159,31 +159,80 @@ class Products
     }
 
     /**
+     * This function finds existing products with the same name (ignoring case) or barcode as a new product
+     * @param DOMDocument $doc The loaded xml file
+     * @param array $data The validated product fields
+     * @return array A message for each match, empty if there are none
+     */
+    private function find_duplicates($doc, $data)
+    {
+        $new_name = preg_replace('/\s+/u', ' ', $data['NAME']);
+        $duplicates = [];
+        foreach ($doc->getElementsByTagName('PRODUCT') as $product) {
+            $name = preg_replace('/\s+/u', ' ', trim($product->getElementsByTagName('NAME')->item(0)?->textContent ?? ''));
+            $barcode = trim($product->getElementsByTagName('BARCODE')->item(0)?->textContent ?? '');
+            // The u and i flags also ignore case for Greek letters, which strcasecmp() cannot
+            if (preg_match('/^' . preg_quote($new_name, '/') . '$/iu', $name)) {
+                $duplicates[] = 'A product named "' . $name . '" already exists.';
+            }
+            if ($data['BARCODE'] !== '' && $barcode === $data['BARCODE']) {
+                $duplicates[] = 'Barcode ' . $barcode . ' is already used by "' . $name . '".';
+            }
+        }
+        return $duplicates;
+    }
+
+    /**
      * This function validates a new product and appends it to the xml file
      * @param array $data The product fields keyed by XML tag (NAME is required), plus an optional CATEGORY_ID
-     * @return array The validation errors, empty if the product was saved
+     * @param bool $allow_duplicates Save the product even if its name or barcode already exists
+     * @return array ['errors' => [...], 'duplicates' => [...]], both empty if the product was saved
      */
-    public function add_product($data)
+    public function add_product($data, $allow_duplicates = false)
     {
         $data = array_map(fn($v) => is_string($v) ? trim($v) : '', is_array($data) ? $data : []);
         $errors = $this->validate_product($data);
         if ($errors) {
-            return $errors;
+            return ['errors' => $errors, 'duplicates' => []];
         }
 
         // Lock the file so two submissions at once cannot overwrite each other
         $fp = fopen($this->xml_file_path, 'r+');
         if (!$fp) {
-            return ['Could not open the products file.'];
+            return ['errors' => ['Could not open the products file.'], 'duplicates' => []];
         }
-        flock($fp, LOCK_EX);
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return ['errors' => ['Could not lock the products file.'], 'duplicates' => []];
+        }
+        try {
+            return $this->write_product($fp, $data, $allow_duplicates);
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+    }
 
+    /**
+     * This function appends a validated product to the xml file
+     * @param resource $fp The xml file, open for reading and writing and locked
+     * @param array $data The validated product fields
+     * @param bool $allow_duplicates Save the product even if its name or barcode already exists
+     * @return array ['errors' => [...], 'duplicates' => [...]], both empty if the product was saved
+     */
+    private function write_product($fp, $data, $allow_duplicates)
+    {
         $contents = stream_get_contents($fp);
         $doc = new DOMDocument();
         if (!$doc->loadXML($contents) || !($products = $doc->getElementsByTagName('PRODUCTS')->item(0))) {
-            flock($fp, LOCK_UN);
-            fclose($fp);
-            return ['Could not read the products file.'];
+            return ['errors' => ['Could not read the products file.'], 'duplicates' => []];
+        }
+
+        if (!$allow_duplicates) {
+            $duplicates = $this->find_duplicates($doc, $data);
+            if ($duplicates) {
+                return ['errors' => [], 'duplicates' => $duplicates];
+            }
         }
 
         // Build the new PRODUCT with the same indentation as the existing ones
@@ -228,9 +277,7 @@ class Products
         rewind($fp);
         fwrite($fp, $output);
         fflush($fp);
-        flock($fp, LOCK_UN);
-        fclose($fp);
 
-        return [];
+        return ['errors' => [], 'duplicates' => []];
     }
 }

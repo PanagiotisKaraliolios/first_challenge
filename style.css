@@ -64,6 +64,16 @@ h2 {
     color: #610404;
 }
 
+.notice.warning {
+    background: #fffbea;
+    border-color: #f7d070;
+    color: #8d2b0b;
+}
+
+.notice p + p {
+    margin-top: 6px;
+}
+
 .product-form {
     max-width: 1200px;
     margin: 0 auto;
@@ -130,6 +140,14 @@ h2 {
 .product-form select:disabled {
     background: var(--bg);
     color: var(--muted);
+}
+
+.product-form label.confirm {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text);
 }
 
 .table-wrap {
