@@ -29,7 +29,12 @@ class Products
     public function print_html_table_with_all_products()
     {
         //TODO 1:Θα πρέπει να συμπληρώσουμε την συνάρτηση ώστε να κάνει print το HTML table με τα προϊόντα του xml
-        $xmldata = simplexml_load_file($this->xml_file_path) or die("Failed to load");
+        $xmldata = $this->quietly('products.xml', fn() => simplexml_load_string($this->read_products_file()));
+        // A message instead of die(), so the rest of the page, including any save error and the form, still appears
+        if (!$xmldata) {
+            echo '<p class="notice error">Failed to load the products file.</p>';
+            return;
+        }
         $xml_data = $xmldata->children();
 
         echo '<table class="products">';
@@ -69,13 +74,54 @@ class Products
     }
 
     /**
+     * This function reads the xml file while holding a shared lock, so it never sees a save half-way through
+     * (on Windows a read during a save would otherwise fail, because file locks there are mandatory)
+     * @return string The file contents, or an empty string if the file cannot be read
+     */
+    private function read_products_file()
+    {
+        $fp = @fopen($this->xml_file_path, 'r');
+        if (!$fp) {
+            return '';
+        }
+        flock($fp, LOCK_SH);
+        $contents = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return is_string($contents) ? $contents : '';
+    }
+
+    /**
+     * This function runs a libxml call without printing its warnings into the page and logs them instead
+     * @param string $label The prefix for the logged messages
+     * @param callable $callback The libxml call
+     * @return mixed What the callback returns
+     */
+    private function quietly($label, $callback)
+    {
+        $previous = libxml_use_internal_errors(true);
+        libxml_clear_errors();
+        $result = $callback();
+        foreach (libxml_get_errors() as $error) {
+            error_log($label . ': ' . trim($error->message));
+        }
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        return $result;
+    }
+
+    /**
      * This function formats a price in euro the Greek way, e.g. 64.9 becomes "64,90 €"
      * @param string $price The price as stored in the xml file
-     * @return string The formatted price, or the value unchanged if it is not a number
+     * @return string The formatted price, or the value unchanged if it is not a plain decimal number
      */
     private function format_price($price)
     {
-        return is_numeric($price) ? number_format((float) $price, 2, ',', '.') . ' €' : $price;
+        // Longer numbers would lose digits in the float conversion, so they are shown as stored
+        if (!preg_match('/^\d{1,12}(\.\d{1,2})?$/', $price)) {
+            return $price;
+        }
+        return number_format((float) $price, 2, ',', '.') . ' €';
     }
 
     /**
@@ -102,8 +148,9 @@ class Products
         $errors = [];
         foreach (self::COLUMNS + ['CATEGORY_ID' => 'Category ID'] as $tag => $label) {
             $data[$tag] = $data[$tag] ?? '';
-            // /u fails on invalid UTF-8, so this also rejects malformed input
-            if (preg_match('/^[^\x00-\x1F\x7F]{0,255}$/u', $data[$tag]) !== 1) {
+            // /u fails on invalid UTF-8, so this also rejects malformed input.
+            // Control characters and U+FFFE/U+FFFF are refused because XML does not allow them
+            if (preg_match('/^[^\x00-\x1F\x7F-\x{9F}\x{FFFE}\x{FFFF}]{0,255}$/u', $data[$tag]) !== 1) {
                 $errors[] = $label . ' must be valid text of at most 255 characters.';
             }
         }
@@ -166,10 +213,12 @@ class Products
      */
     private function find_duplicates($doc, $data)
     {
-        $new_name = preg_replace('/\s+/u', ' ', $data['NAME']);
+        // Drop invisible format characters such as zero-width spaces and collapse all whitespace before comparing
+        $normalize = fn($text) => trim(preg_replace(['/\p{Cf}/u', '/\s+/u'], ['', ' '], $text));
+        $new_name = $normalize($data['NAME']);
         $duplicates = [];
         foreach ($doc->getElementsByTagName('PRODUCT') as $product) {
-            $name = preg_replace('/\s+/u', ' ', trim($product->getElementsByTagName('NAME')->item(0)?->textContent ?? ''));
+            $name = $normalize($product->getElementsByTagName('NAME')->item(0)?->textContent ?? '');
             $barcode = trim($product->getElementsByTagName('BARCODE')->item(0)?->textContent ?? '');
             // The u and i flags also ignore case for Greek letters, which strcasecmp() cannot
             if (preg_match('/^' . preg_quote($new_name, '/') . '$/iu', $name)) {
@@ -183,6 +232,21 @@ class Products
     }
 
     /**
+     * This function parses xml text and logs the reasons when it is not well-formed
+     * @param string|false $xml The xml text
+     * @return DOMDocument|null The parsed document, or null if the text is not well-formed xml
+     */
+    private function parse_xml($xml)
+    {
+        // loadXML() throws on an empty string instead of returning false
+        if (!is_string($xml) || $xml === '') {
+            return null;
+        }
+        $doc = new DOMDocument();
+        return $this->quietly('products.xml', fn() => $doc->loadXML($xml)) ? $doc : null;
+    }
+
+    /**
      * This function validates a new product and appends it to the xml file
      * @param array $data The product fields keyed by XML tag (NAME is required), plus an optional CATEGORY_ID
      * @param bool $allow_duplicates Save the product even if its name or barcode already exists
@@ -190,7 +254,10 @@ class Products
      */
     public function add_product($data, $allow_duplicates = false)
     {
-        $data = array_map(fn($v) => is_string($v) ? trim($v) : '', is_array($data) ? $data : []);
+        // Trim all whitespace, including non-breaking spaces, and invisible format characters such as zero-width spaces,
+        // so a name made only of them counts as empty. Invalid UTF-8 is kept as is so validation reports it
+        $trim = fn($v) => is_string($v) ? (preg_replace('/^[\s\p{Cf}]+|[\s\p{Cf}]+$/u', '', $v) ?? $v) : '';
+        $data = array_map($trim, is_array($data) ? $data : []);
         $errors = $this->validate_product($data);
         if ($errors) {
             return ['errors' => $errors, 'duplicates' => []];
@@ -223,8 +290,8 @@ class Products
     private function write_product($fp, $data, $allow_duplicates)
     {
         $contents = stream_get_contents($fp);
-        $doc = new DOMDocument();
-        if (!$doc->loadXML($contents) || !($products = $doc->getElementsByTagName('PRODUCTS')->item(0))) {
+        $doc = $this->parse_xml($contents);
+        if (!$doc || !($products = $doc->getElementsByTagName('PRODUCTS')->item(0))) {
             return ['errors' => ['Could not read the products file.'], 'duplicates' => []];
         }
 
@@ -273,10 +340,21 @@ class Products
             $output = str_replace("\n", "\r\n", str_replace("\r\n", "\n", $output));
         }
 
+        // Check that the exact text that will be written can be read back, so a save can never leave an unreadable file
+        if (!$this->parse_xml($output)) {
+            return ['errors' => ['The product was not saved because the products file would become unreadable.'], 'duplicates' => []];
+        }
+
         ftruncate($fp, 0);
         rewind($fp);
-        fwrite($fp, $output);
-        fflush($fp);
+        if (fwrite($fp, $output) !== strlen($output) || !fflush($fp)) {
+            // Put the previous version back so the page keeps working
+            $restored = ftruncate($fp, 0) && rewind($fp) && fwrite($fp, $contents) === strlen($contents) && fflush($fp);
+            return ['errors' => [$restored
+                ? 'Saving the products file failed, so the product was not saved.'
+                : 'Saving the products file failed and the previous version could not be written back, so products.xml may be incomplete.'
+            ], 'duplicates' => []];
+        }
 
         return ['errors' => [], 'duplicates' => []];
     }

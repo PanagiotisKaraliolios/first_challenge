@@ -24,7 +24,7 @@
             $duplicates = $result['duplicates'];
             if (!$errors && !$duplicates) {
                 // Redirect so a page refresh does not submit the product again
-                header('Location: ' . basename($_SERVER['PHP_SELF']) . '?added=1');
+                header('Location: products.php?added=1');
                 exit;
             }
         }
@@ -78,31 +78,32 @@
 </div>
 <?php endif; ?>
 
-<form class="product-form" method="post" action="<?= htmlspecialchars(basename($_SERVER['PHP_SELF'])) ?>">
+<?php // A fixed action: one built from PHP_SELF would let a crafted URL such as products.php/javascript:... set it ?>
+<form class="product-form" method="post" action="products.php">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     <label class="wide">Name *
         <input type="text" name="product[NAME]" value="<?= field($form, 'NAME') ?>" maxlength="255" required>
     </label>
     <label>Price (€)
-        <input type="number" name="product[PRICE]" value="<?= field($form, 'PRICE') ?>" step="0.01" min="0" max="999999999.99">
+        <input type="text" name="product[PRICE]" value="<?= field($form, 'PRICE') ?>" inputmode="decimal" pattern="\s*\d{1,9}([.,]\d{1,2})?\s*" title="A number with up to 2 decimals, e.g. 64.90" placeholder="e.g. 64.90">
     </label>
     <label>Quantity
-        <input type="number" name="product[QUANTITY]" value="<?= field($form, 'QUANTITY') ?>" step="1" min="0" max="999999999">
+        <input type="text" name="product[QUANTITY]" value="<?= field($form, 'QUANTITY') ?>" inputmode="numeric" pattern="\s*\d{1,9}\s*" title="A whole number of 0 or more">
     </label>
     <label>Category
         <input type="text" name="product[CATEGORY]" value="<?= field($form, 'CATEGORY') ?>" maxlength="255">
     </label>
     <label>Category ID
-        <input type="text" name="product[CATEGORY_ID]" value="<?= field($form, 'CATEGORY_ID') ?>" inputmode="numeric" pattern="\d{1,18}" title="Digits only">
+        <input type="text" name="product[CATEGORY_ID]" value="<?= field($form, 'CATEGORY_ID') ?>" inputmode="numeric" pattern="\s*\d{1,18}\s*" title="Digits only">
     </label>
     <label>Manufacturer
         <input type="text" name="product[MANUFACTURER]" value="<?= field($form, 'MANUFACTURER') ?>" maxlength="255">
     </label>
     <label>Barcode
-        <input type="text" name="product[BARCODE]" value="<?= field($form, 'BARCODE') ?>" inputmode="numeric" pattern="\d{8}|\d{12,14}" title="8, 12, 13 or 14 digits">
+        <input type="text" name="product[BARCODE]" value="<?= field($form, 'BARCODE') ?>" inputmode="numeric" pattern="\s*(\d{8}|\d{12,14})\s*" title="8, 12, 13 or 14 digits">
     </label>
     <label>Weight
-        <input type="text" name="product[WEIGHT]" value="<?= field($form, 'WEIGHT') ?>" pattern="\d{1,6}([.,]\d{1,3})?\s*([kK][gG]|[gG])" title="A number with up to 3 decimals followed by kg or g, e.g. 6.1kg or 500g" placeholder="e.g. 6.1kg">
+        <input type="text" name="product[WEIGHT]" value="<?= field($form, 'WEIGHT') ?>" pattern="\s*(?=[\d.,]*[1-9])\d{1,6}([.,]\d{1,3})? *([kK][gG]|[gG])\s*" title="A number above 0 with up to 3 decimals followed by kg or g, e.g. 6.1kg or 500g" placeholder="e.g. 6.1kg">
     </label>
     <label>In stock
         <select name="product[INSTOCK]">
